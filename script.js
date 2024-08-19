@@ -1,82 +1,229 @@
-// "use strict";
+"use strict";
 
-// localStorage.setItem("current_page", 1);
+// Referencias a elementos del DOM
+const ELEMENTO_INFO = document.querySelector("#info");
+const TITULO_INFO = ELEMENTO_INFO.querySelector("#info_card #info_card_head h3");
+const CUERPO_INFO = ELEMENTO_INFO.querySelector("#info_card #info_card_body");
 
-// function getLocalSt(key,conversion) {
-//     if (conversion === undefined) {
-//         return localStorage.getItem(key);
-//     } else if (conversion === Number) {
-//         return Number(localStorage.getItem(key));
-//     }
-// }
+// Funciones utilitarias
+function capitalizar(cadena) {
+    return cadena[0].toUpperCase() + cadena.slice(1);
+}
 
-// function making_cards(movie) {
-//     let [card, h1, img, date_p, score_p] = structure_cards();
-//     h1.textContent = movie.title;
-//     const capturadorErrorImg = () => img.src = "https://http.cat/images/400.jpg";
-//     img.onerror = capturadorErrorImg
-//     img.src = `https://image.tmdb.org/t/p/w500/${movie.poster_path}`;
-//     if (movie.release_date !== "") {
-//         date_p.textContent = movie.release_date;
-//     } else {
-//         date_p.textContent = "Undefined"
-//     }
-    
-//     const DATE_STRONG = document.createElement("strong");
-//     DATE_STRONG.textContent = "Release: ";
-//     date_p.insertAdjacentElement("afterbegin", DATE_STRONG);
-//     score_p.textContent = movie.popularity;
-//     const SCORE_STRONG = document.createElement("strong");
-//     SCORE_STRONG.textContent = "Popularity: ";
-//     score_p.insertAdjacentElement("afterbegin", SCORE_STRONG);
-//     [h1, img, date_p, score_p].forEach((elem) =>
-//         card.insertAdjacentElement("beforeend", elem)
-//     );
-//     return card;
-// }
+function encontrarNumeros(cadena) {
+    const PATRON = /[0-9]/g;
+    return cadena.match(PATRON).join("");
+}
 
-// function structure_cards() {
-//     const CARD = document.createElement("div");
-//     CARD.classList.add("card", "flex_col", "j-sb", "text_center");
-//     const TITLE = document.createElement("h3");
-//     const IMG = document.createElement("img");
-//     IMG.classList.add("j-all_c");
-//     const DATE = document.createElement("p");
-//     const SCORE = document.createElement("p");
-//     return [CARD, TITLE, IMG, DATE, SCORE];
-// }
+function cadenaConGuionesBajos(cadena) {
+    return cadena.split(" ").join("_");
+}
 
-// async function cargarPagina() {
-//     const JSON = await gettingJson();
-//     const CURRENT = document.querySelector(".current_pag");
-//     CURRENT.textContent = JSON.page;
-//     const TOTAL = document.querySelector(".total_pags");
-//     TOTAL.textContent = JSON.total_pages;
-//     JSON.results.forEach((movie) => {
-//         const CARD = making_cards(movie);
-//         SECTION.insertAdjacentElement("beforeend", CARD);
-//     });
-//     return JSON
-// }
+// Función unificada para obtener datos de la API
+async function obtenerDatosAPI(url) {
+    const cabeceras = {
+        "Content-Type": "application/json",
+    };
 
-// async function gettingJson() {
-//     const DISCOVER_URL = new URL(
-//         `https://api.themoviedb.org/3/discover/movie?include_adult=true&include_video=true&language=es-MX&page=${getLocalSt("current_page")}&sort_by=title.asc`);
-    
-//     const HEADER = {
-//         accept: "aplication/json",
-//         Authorization:
-//             "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIyYTI2MzY4MTY4YTM2NzY1ODdmNTg4NTYzYmFlOWI4NyIsIm5iZiI6MTcyMjQ4NTQ5MC40MjE3ODksInN1YiI6IjY2YWE5MmE1NDIzMjEyYzBhMjc1NmZlZSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.tj_UbiajE5os-TEvrkkxAKG4mCIO1or8jn5v6z-VgBg",
-//     };
-    
-//     const OPTIONS = {
-//         method: "GET",
-//         headers: HEADER,
-//     };
-    
-//     const REQUEST = new Request(DISCOVER_URL, OPTIONS);
-//     return await (await fetch(REQUEST)).json();
-// };
+    const opciones = {
+        method: "GET",
+        headers: cabeceras,
+        description: "",
+        renders: ["application/json", "text/html"],
+        parses: [
+            "application/json",
+            "application/x-www-form-urlencoded",
+            "multipart/form-data",
+        ],
+    };
+
+    try {
+        const respuesta = await fetch(new Request(url, opciones));
+        if (!respuesta.ok) {
+            throw new Error(`¡Error HTTP! estado: ${respuesta.status}`);
+        }
+        return await respuesta.json();
+    } catch (error) {
+        console.error("Error al obtener datos:", error);
+        throw error;
+    }
+}
+
+async function cargarJsonPagina() {
+    const paginaActual = document.location.pathname
+        .split("/")
+        .pop()
+        .split(".")
+        .reverse()
+        .pop();
+
+    if (paginaActual !== "index" && paginaActual !== "") {
+        const url = `https://swapi.py4e.com/api/${paginaActual}/`;
+        return await obtenerDatosAPI(url);
+    }
+}
+
+// Caché para respuestas de la API
+const cacheAPI = new Map();
+
+async function cargarJsonItem(url) {
+    if (cacheAPI.has(url)) {
+        return cacheAPI.get(url);
+    }
+    const datos = await obtenerDatosAPI(url);
+    cacheAPI.set(url, datos);
+    return datos;
+}
+
+async function cargarPagina() {
+    const json = await cargarJsonPagina();
+    const elementoActual = document.querySelector(".current_pag");
+    if (json.next) {
+        const elementoTotal = document.querySelector(".total_pags");
+        elementoActual.textContent = Number(json.next[json.next.length - 1]) * 10 - 10;
+        elementoTotal.textContent = json.count;
+    } else {
+        elementoActual.parentElement.parentElement.remove();
+    }
+
+    const ulPrincipal = document.querySelector("main ul");
+    json.results.forEach((pelicula) => {
+        const item = document.createElement("li");
+        item.classList.add("card", "selectDisable");
+        item.value = encontrarNumeros(pelicula.url.slice(-4));
+        item.textContent = pelicula.title;
+        ulPrincipal.appendChild(item);
+    });
+    return json;
+}
+
+function actualizarURL(valor) {
+    const parametrosURL = new URLSearchParams(window.location.search);
+    if (valor) {
+        parametrosURL.set("id", valor);
+        const nuevaURL = `${window.location.pathname}?${parametrosURL.toString()}`;
+        history.pushState({}, "", nuevaURL);
+    } else {
+        history.pushState({}, "", window.location.pathname);
+    }
+}
+
+async function observarURL(elementoInfo, items, jsonObtenido) {
+    const parametrosURL = new URLSearchParams(window.location.search);
+    const id = parametrosURL.get("id");
+
+    const itemCoincidente = Array.from(items).find(item => item.value == id);
+    if (itemCoincidente) {
+        await cargarInfo(id, jsonObtenido);
+        elementoInfo.classList.remove("no_display");
+        elementoInfo.style.opacity = 1;
+    }
+}
+
+async function cargarInfo(id, jsonObtenido) {
+    const posicion = jsonObtenido.results.find(pos => 
+        id === encontrarNumeros(pos.url.slice(-4))
+    );
+
+    if (posicion) {
+        if (posicion.url.includes("films")) {
+            await estructurarPeliculas(posicion);
+        } else if (posicion.url.includes("")) {
+        } else if (posicion.url.includes("")) {
+        } else if (posicion.url.includes("")) {
+        } else if (posicion.url.includes("")) {
+        } else {
+        }
+    }
+}
+
+async function crearUlInfoForOf(clave, objetoItem) {
+    const tituloUl = document.createElement("strong");
+    tituloUl.textContent = capitalizar(clave);
+    const elementoUl = document.createElement("ul");
+    elementoUl.classList.add("flex", "wrap", "j_c");
+
+    const promesas = objetoItem[clave].map(async (valor) => {
+        const jsonClave = await cargarJsonItem(valor);
+        const elementoLi = document.createElement("li");
+        elementoLi.classList.add("card");
+        const elementoA = document.createElement("a");
+        elementoA.href = `http://127.0.0.1:5500/films.html?id=`;
+        elementoA.textContent = jsonClave.name;
+        elementoLi.appendChild(elementoA);
+        return elementoLi;
+    });
+
+    const itemsLista = await Promise.all(promesas);
+    itemsLista.forEach(li => elementoUl.appendChild(li));
+
+    return [tituloUl, elementoUl];
+}
+
+async function estructurarPeliculas(pelicula) {
+    TITULO_INFO.textContent = pelicula.title;
+
+    const elementos = [
+        crearParStrongParrafo("Description", pelicula.opening_crawl),
+        await crearUlInfoForOf("characters", pelicula),
+        await crearUlInfoForOf("planets", pelicula),
+        await crearUlInfoForOf("starships", pelicula),
+        await crearUlInfoForOf("vehicles", pelicula),
+        await crearUlInfoForOf("species", pelicula),
+        crearParStrongCita("Director", pelicula.director),
+        crearParStrongCita("Producer", pelicula.producer),
+        crearParStrongCita("Release Date", pelicula.release_date)
+    ];
+
+    elementos.flat().forEach(elem => CUERPO_INFO.appendChild(elem));
+}
+
+function crearParStrongParrafo(titulo, contenido) {
+    const strong = document.createElement("strong");
+    strong.textContent = titulo;
+    const p = document.createElement("p");
+    p.textContent = contenido;
+    return [strong, p];
+}
+
+function crearParStrongCita(titulo, contenido) {
+    const strong = document.createElement("strong");
+    strong.textContent = titulo;
+    const q = document.createElement("q");
+    q.textContent = contenido;
+    return [strong, q];
+}
+
+document.addEventListener("DOMContentLoaded", async () => {
+    let jsonObtenido;
+    try {
+        jsonObtenido = await cargarPagina();
+    } catch (error) {
+        console.error("Error al cargar la página:", error);
+        return;
+    }
+
+    const items = document.querySelectorAll("main ul li");
+
+    document.querySelector(".exit").addEventListener("click", () => {
+        actualizarURL();
+        ELEMENTO_INFO.style.opacity = 0;
+        ELEMENTO_INFO.classList.add("no_display");
+        TITULO_INFO.textContent = "";
+        CUERPO_INFO.innerHTML = "";
+    });
+
+    items.forEach((item) => {
+        item.addEventListener("click", () => {
+            actualizarURL(item.value);
+            observarURL(ELEMENTO_INFO, items, jsonObtenido);
+        });
+    });
+
+    window.addEventListener("popstate", () => observarURL(ELEMENTO_INFO, items, jsonObtenido));
+
+    console.log(jsonObtenido);
+});
 
 // const SECTION = document.querySelector("section");
 // const ANTERIOR_BOTON = document.querySelector("#anterior");

@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>SWAPMPIRE</title>
+        <title>Films</title>
         <link
             rel="icon"
             type="image/png"
@@ -13,9 +13,9 @@
         <link rel="stylesheet" href="style.css" />
         <script src="script.js" defer></script>
     </head>
-    <body class="flex_col">
+    <body class="relative flex_col">
         <header class="flex j_c all_c selectDisable">
-            <a class="flex all_c selectDisable" href="">
+            <a class="flex all_c selectDisable" href="/index.html">
                 <img
                 src="https://seeklogo.com/images/J/Jedi_Order-logo-9FC4769C44-seeklogo.com.png"
                 alt=""
@@ -29,13 +29,26 @@
             </div>
             </a>
         </header>
-        <section class="menu flex j_sa">
-            <a href="/films.html" class="menu-item">films</a>
-            <a href="" class="menu-item">characters</a>
-            <a href="" class="menu-item">planets</a>
-            <a href="" class="menu-item">species</a>
-            <a href="" class="menu-item">starships</a>
-            <a href="" class="menu-item">vehicles</a>
-        </section>
+        <main>
+            <h2 class="text_center">Films</h2>
+            <ul class="flex wrap j_sa"></ul>
+        </main>
+        <div id="info" class="fixed all_c flex no_display">
+            <div id="info_card" class="flex_col">
+                <div id="info_card_head" class="flex all_c text_center">
+                    <h3></h3>
+                    <button class="exit">x</button>
+                </div>
+                <div id="info_card_body" class="grid"></div>
+            </div>
+        </div>
+        <footer class="flex j_c text_center">
+            <div id="anterior" class="button">Página anterior</div>
+            <div class="pags">
+                <span class="current_pag"></span> /
+                <span class="total_pags"></span>
+            </div>
+            <div id="siguiente" class="button">Página siguiente</div>
+        </footer>
     </body>
 </html>
