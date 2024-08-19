@@ -75,6 +75,10 @@
     position: absolute;
 }
 
+.fixed {
+    position: fixed;
+}
+
 .centrar_absolutoX {
     left: 50%;
     transform: translateX(-50%);
@@ -105,14 +109,18 @@ body {
 }
 
 header {
-    position: fixed;
     top: 0;
     left: 0;
     right: 0;
     width: 100%;
+    background-color: black;
 }
 
-header, footer {
+header a, .menu-item {
+    text-decoration: none;
+}
+
+header a, footer {
     background-color: var(--PrimaryColor);
     gap: 30px;
 }
@@ -125,6 +133,7 @@ h1 {
     color: var(--SecondaryColor);
     margin-bottom: 0;
     line-height: 2rem;
+    font-weight: 100;
 }
 
 header h4 {
@@ -133,7 +142,7 @@ header h4 {
     
 }
 
-main, .menu {
+main {
     padding-top: 104px;
 }
 
@@ -143,7 +152,7 @@ main{
 
 .menu {
     overflow: hidden;
-    height: 100%;
+    flex-grow: 1;
 }
 
 .menu a:nth-child(1) {
@@ -180,7 +189,6 @@ main{
     flex-shrink: 20;
     background-position: center;
     text-align: center;
-    text-decoration: none;
     color: var(--SecondaryColor);
     align-content: center;
     text-shadow: 0 0 20px #000000;
@@ -232,7 +240,7 @@ footer {
 }
 
 @media (max-width: 382px) {
-    main, .menu {
+    main {
         padding-top: 137px;
     }
 }
