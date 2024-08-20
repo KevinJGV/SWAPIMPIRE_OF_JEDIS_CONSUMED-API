@@ -146,6 +146,26 @@ async function cargarInfo(id) {
     if (posicion) await estructurarItems(posicion);
 }
 
+function obtenerPaginaParaAncla(id_a_encontrar, tema, pagina) {
+    return obtenerDatosAPI(`https://swapi.py4e.com/api/${tema}/?page=${pagina}`)
+        .then(json => {
+            for (const elem of json.results) {
+                if (elem.url.split("/")[3] === id_a_encontrar) {
+                    return pagina;
+                }
+            };
+            if (json.next) {
+                return obtenerPaginaParaAncla(id_a_encontrar, tema, pagina + 1);
+            }
+        })
+        .catch(error => {
+            console.error("Error al obtener la página:", error);
+            throw error;
+        });
+}
+
+
+
 // Función para crear una lista de información
 async function crearUlInfoForOf(clave, objetoItem) {
     if (objetoItem[clave].length > 0) {
@@ -157,12 +177,14 @@ async function crearUlInfoForOf(clave, objetoItem) {
         const itemsLista = await Promise.all(objetoItem[clave].map(async (valor) => {
             const jsonClave = await cargarJsonItem(valor);
             const pathname = new URL(jsonClave.url);
+            const tema = pathname.pathname.split("/")[2];
             const id = pathname.pathname.split("/")[3];
-            const pagina = Math.ceil(id / 10);
+            const pagina = await obtenerPaginaParaAncla(id,tema, 1);
+            console.log(pagina);
             const elementoLi = document.createElement("li");
             elementoLi.classList.add("card");
             const elementoA = document.createElement("a");
-            elementoA.href = `${pathname.pathname.split("/")[2]}.html?page=${pagina}&id=${id}`;
+            elementoA.href = `${tema}.html?page=${pagina}&id=${id}`;
             elementoA.textContent = jsonClave.title || jsonClave.name;
             elementoLi.appendChild(elementoA);
             return elementoLi;
@@ -229,6 +251,7 @@ function ocultarBoton(valor_maximo) {
 
 // Event listener principal cuando el DOM está cargado
 document.addEventListener("DOMContentLoaded", async () => {
+    console.log(await obtenerPaginaParaAncla("17","people",1));
     current_page = obtenerParametroURL("page") || 1;
     let jsonObtenido;
     try {
