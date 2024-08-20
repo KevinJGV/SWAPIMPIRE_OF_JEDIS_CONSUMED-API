@@ -27,6 +27,11 @@
 	grid-row-gap: 1rem;
 }
 
+.grid_text_center {
+    justify-content: center;
+    place-items: center;
+}
+
 .flex {
     display: flex;
 }

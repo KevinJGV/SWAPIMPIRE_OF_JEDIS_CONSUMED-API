@@ -88,7 +88,7 @@ function crearElementosLista(resultados) {
     ulPrincipal.innerHTML = ''; // Limpiar la lista existente
     resultados.forEach((item) => {
         const item_element = document.createElement("li");
-        item_element.classList.add("card", "selectDisable");
+        item_element.classList.add("card", "selectDisable", "flex", "grid_text_center");
         item_element.dataset.id = encontrarNumeros(item.url.slice(-4));
         item_element.textContent = item.title || item.name;
         ulPrincipal.appendChild(item_element);
