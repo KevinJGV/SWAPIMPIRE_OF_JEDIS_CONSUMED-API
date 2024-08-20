@@ -1,13 +1,23 @@
 "use strict";
 
-// Referencias a elementos del DOM
+const GRID_UI = document.querySelector(".grid");
+const ANTERIOR_BOTON = document.querySelector("#anterior");
+const SIGUIENTE_BOTON = document.querySelector("#siguiente");
+const elementos_recorridos = document.querySelector(".current_pag");
+const elementos_totales = document.querySelector("#siguiente");
+let current_page = 1;
 const ELEMENTO_INFO = document.querySelector("#info");
-const TITULO_INFO = ELEMENTO_INFO.querySelector("#info_card #info_card_head h3");
+const TITULO_INFO = ELEMENTO_INFO.querySelector(
+    "#info_card #info_card_head h3"
+);
 const CUERPO_INFO = ELEMENTO_INFO.querySelector("#info_card #info_card_body");
 
-// Funciones utilitarias
 function capitalizar(cadena) {
     return cadena[0].toUpperCase() + cadena.slice(1);
+}
+
+function Deshacer_Underscore(string) {
+    return capitalizar(string.split("_").join(" "));
 }
 
 function encontrarNumeros(cadena) {
@@ -19,7 +29,6 @@ function cadenaConGuionesBajos(cadena) {
     return cadena.split(" ").join("_");
 }
 
-// Función unificada para obtener datos de la API
 async function obtenerDatosAPI(url) {
     const cabeceras = {
         "Content-Type": "application/json",
@@ -49,7 +58,7 @@ async function obtenerDatosAPI(url) {
     }
 }
 
-async function cargarJsonPagina() {
+async function cargarJsonPaginaActual(pagina) {
     const paginaActual = document.location.pathname
         .split("/")
         .pop()
@@ -58,12 +67,16 @@ async function cargarJsonPagina() {
         .pop();
 
     if (paginaActual !== "index" && paginaActual !== "") {
-        const url = `https://swapi.py4e.com/api/${paginaActual}/`;
+        let url;
+        if (!pagina) {
+            url = `https://swapi.py4e.com/api/${paginaActual}/`;
+        } else {
+            url = `https://swapi.py4e.com/api/${paginaActual}/?page=${pagina}`;
+        }
         return await obtenerDatosAPI(url);
     }
 }
 
-// Caché para respuestas de la API
 const cacheAPI = new Map();
 
 async function cargarJsonItem(url) {
@@ -75,33 +88,40 @@ async function cargarJsonItem(url) {
     return datos;
 }
 
-async function cargarPagina() {
-    const json = await cargarJsonPagina();
+async function cargarPagina(pagina) {
+    const json = await cargarJsonPaginaActual(pagina);
     const elementoActual = document.querySelector(".current_pag");
-    if (json.next) {
+    if (json.next || json.previous) {
         const elementoTotal = document.querySelector(".total_pags");
-        elementoActual.textContent = Number(json.next[json.next.length - 1]) * 10 - 10;
+        elementoActual.textContent =
+            Number(json.next[json.next.length - 1]) * 10 - 10;
         elementoTotal.textContent = json.count;
     } else {
         elementoActual.parentElement.parentElement.remove();
     }
 
     const ulPrincipal = document.querySelector("main ul");
-    json.results.forEach((pelicula) => {
-        const item = document.createElement("li");
-        item.classList.add("card", "selectDisable");
-        item.value = encontrarNumeros(pelicula.url.slice(-4));
-        item.textContent = pelicula.title;
-        ulPrincipal.appendChild(item);
+    json.results.forEach((item) => {
+        const item_element = document.createElement("li");
+        item_element.classList.add("card", "selectDisable");
+        item_element.value = encontrarNumeros(item.url.slice(-4));
+        if (ObtenerITEM_URL(item, "films", "bool")) {
+            item_element.textContent = item.title;
+        } else {
+            item_element.textContent = item.name;
+        }
+        ulPrincipal.appendChild(item_element);
     });
     return json;
 }
 
-function actualizarURL(valor) {
+function actualizarURL(param, valor) {
     const parametrosURL = new URLSearchParams(window.location.search);
     if (valor) {
-        parametrosURL.set("id", valor);
-        const nuevaURL = `${window.location.pathname}?${parametrosURL.toString()}`;
+        parametrosURL.set(param, valor);
+        const nuevaURL = `${
+            window.location.pathname
+        }?${parametrosURL.toString()}`;
         history.pushState({}, "", nuevaURL);
     } else {
         history.pushState({}, "", window.location.pathname);
@@ -111,8 +131,9 @@ function actualizarURL(valor) {
 async function observarURL(elementoInfo, items, jsonObtenido) {
     const parametrosURL = new URLSearchParams(window.location.search);
     const id = parametrosURL.get("id");
+    const page = parametrosURL.get("page");
 
-    const itemCoincidente = Array.from(items).find(item => item.value == id);
+    const itemCoincidente = Array.from(items).find((item) => item.value == id);
     if (itemCoincidente) {
         await cargarInfo(id, jsonObtenido);
         elementoInfo.classList.remove("no_display");
@@ -120,84 +141,145 @@ async function observarURL(elementoInfo, items, jsonObtenido) {
     }
 }
 
+function ObtenerITEM_URL(item, string, bool_or_Number) {
+    if (bool_or_Number === "bool") {
+        return item.url.includes(string);
+    } else {
+        return item.url.split("/")[bool_or_Number];
+    }
+}
+
+function obtenerParametroURL(key) {
+    const URLParams = new URLSearchParams(window.location.search)
+    return URLParams.get(key)
+}
+
+
 async function cargarInfo(id, jsonObtenido) {
-    const posicion = jsonObtenido.results.find(pos => 
-        id === encontrarNumeros(pos.url.slice(-4))
+    const posicion = jsonObtenido.results.find(
+        (pos) => id === encontrarNumeros(pos.url.slice(-4))
     );
 
     if (posicion) {
-        if (posicion.url.includes("films")) {
-            await estructurarPeliculas(posicion);
-        } else if (posicion.url.includes("")) {
-        } else if (posicion.url.includes("")) {
-        } else if (posicion.url.includes("")) {
-        } else if (posicion.url.includes("")) {
-        } else {
-        }
+        await estructurarItems(posicion);
     }
 }
 
 async function crearUlInfoForOf(clave, objetoItem) {
-    const tituloUl = document.createElement("strong");
-    tituloUl.textContent = capitalizar(clave);
-    const elementoUl = document.createElement("ul");
-    elementoUl.classList.add("flex", "wrap", "j_c");
+    if (objetoItem[clave].length > 0) {
+        const tituloUl = document.createElement("strong");
+        tituloUl.textContent = Deshacer_Underscore(clave);
+        const elementoUl = document.createElement("ul");
+        elementoUl.classList.add("flex", "wrap", "j_c");
 
-    const promesas = objetoItem[clave].map(async (valor) => {
-        const jsonClave = await cargarJsonItem(valor);
-        const elementoLi = document.createElement("li");
-        elementoLi.classList.add("card");
-        const elementoA = document.createElement("a");
-        elementoA.href = `http://127.0.0.1:5500/films.html?id=`;
-        elementoA.textContent = jsonClave.name;
-        elementoLi.appendChild(elementoA);
-        return elementoLi;
-    });
+        const promesas = objetoItem[clave].map(async (valor) => {
+            const jsonClave = await cargarJsonItem(valor);
+            const pathname = new URL(jsonClave.url);
+            const id = pathname.pathname.split("/")[3];
+            const pagina = Math.ceil(id / 10);
+            const elementoLi = document.createElement("li");
+            elementoLi.classList.add("card");
+            const elementoA = document.createElement("a");
+            elementoA.href = `${pathname.pathname.split("/")[2]}.html?page=${pagina}&id=${id}`;
+            if (ObtenerITEM_URL(jsonClave, "films", "bool")) {
+                elementoA.textContent = jsonClave.title;
+            } else {
+                elementoA.textContent = jsonClave.name;
+            }
+            elementoLi.appendChild(elementoA);
+            return elementoLi;
+        });
 
-    const itemsLista = await Promise.all(promesas);
-    itemsLista.forEach(li => elementoUl.appendChild(li));
+        const itemsLista = await Promise.all(promesas);
+        itemsLista.forEach((li) => elementoUl.appendChild(li));
 
-    return [tituloUl, elementoUl];
+        return [tituloUl, elementoUl];
+    }
 }
 
-async function estructurarPeliculas(pelicula) {
-    TITULO_INFO.textContent = pelicula.title;
-
-    const elementos = [
-        crearParStrongParrafo("Description", pelicula.opening_crawl),
-        await crearUlInfoForOf("characters", pelicula),
-        await crearUlInfoForOf("planets", pelicula),
-        await crearUlInfoForOf("starships", pelicula),
-        await crearUlInfoForOf("vehicles", pelicula),
-        await crearUlInfoForOf("species", pelicula),
-        crearParStrongCita("Director", pelicula.director),
-        crearParStrongCita("Producer", pelicula.producer),
-        crearParStrongCita("Release Date", pelicula.release_date)
-    ];
-
-    elementos.flat().forEach(elem => CUERPO_INFO.appendChild(elem));
+async function crearParStrongTexto(titulo, contenido) {
+    if (
+        contenido.length > 0 &&
+        titulo !== "title" &&
+        titulo !== "name" &&
+        titulo !== "created" &&
+        titulo !== "edited" &&
+        titulo !== "url"
+    ) {
+        const strong = document.createElement("strong");
+        strong.textContent = Deshacer_Underscore(titulo);
+        if (!URL.canParse(contenido)) {
+            const p = document.createElement("p");
+            p.textContent = contenido;
+            return [strong, p];
+        } else {
+            const jsonClave = await cargarJsonItem(contenido);
+            const pathname = new URL(jsonClave.url);
+            const id = Number(pathname.pathname.split("/")[3]);
+            const pagina = Math.ceil(id / 10);
+            const a = document.createElement("a");
+            a.classList.add("card");
+            a.href = `${pathname.pathname.split("/")[2]}.html?page=${pagina}&id=${id}`;
+            if (ObtenerITEM_URL(jsonClave, "films", "bool")) {
+                a.textContent = jsonClave.title;
+            } else {
+                a.textContent = jsonClave.name;
+            }
+            return [strong, a];
+        }
+    }
 }
 
-function crearParStrongParrafo(titulo, contenido) {
-    const strong = document.createElement("strong");
-    strong.textContent = titulo;
-    const p = document.createElement("p");
-    p.textContent = contenido;
-    return [strong, p];
+async function estructurarItems(item) {
+    if (ObtenerITEM_URL(item, "films", "bool")) {
+        TITULO_INFO.textContent = item.title;
+    } else {
+        TITULO_INFO.textContent = item.name;
+    }
+
+    const elementos = [];
+
+    for (const key of Object.keys(item)) {
+        if (Array.isArray(item[key])) {
+            const UlElement = await crearUlInfoForOf(key, item);
+            elementos.push(UlElement);
+        } else {
+            const PElement = await crearParStrongTexto(key, item[key]);
+            elementos.push(PElement);
+        }
+    }
+
+    const filtred_elementos = elementos.filter((element) => element);
+    filtred_elementos.flat().forEach((elem) => CUERPO_INFO.appendChild(elem));
 }
 
-function crearParStrongCita(titulo, contenido) {
-    const strong = document.createElement("strong");
-    strong.textContent = titulo;
-    const q = document.createElement("q");
-    q.textContent = contenido;
-    return [strong, q];
+function evaluacionNavegacion(e, valor_maximo) {
+    if (e.target.id === "siguiente") {
+        return Number(elementos_recorridos.textContent) + 10 >
+            Number(valor_maximo)
+            ? false
+            : true;
+    } else {
+        return Number(elementos_recorridos.textContent) - 10 < 1 ? false : true;
+    }
+}
+
+function ocultarBoton(valor_maximo) {
+    if (Number(elementos_recorridos.textContent) + 10 > Number(valor_maximo)) {
+        SIGUIENTE_BOTON.classList.add("hidden");
+    } else if (Number(elementos_recorridos.textContent) - 10 < 1) {
+        ANTERIOR_BOTON.classList.add("hidden");
+    } else {
+        SIGUIENTE_BOTON.classList.remove("hidden");
+        ANTERIOR_BOTON.classList.remove("hidden");
+    }
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+    current_page = obtenerParametroURL("page");
     let jsonObtenido;
     try {
-        jsonObtenido = await cargarPagina();
+        jsonObtenido = await cargarPagina(current_page);
     } catch (error) {
         console.error("Error al cargar la página:", error);
         return;
@@ -210,49 +292,40 @@ document.addEventListener("DOMContentLoaded", async () => {
         ELEMENTO_INFO.style.opacity = 0;
         ELEMENTO_INFO.classList.add("no_display");
         TITULO_INFO.textContent = "";
-        CUERPO_INFO.innerHTML = "";
+        CUERPO_INFO.textContent = "";
     });
 
     items.forEach((item) => {
         item.addEventListener("click", () => {
-            actualizarURL(item.value);
+            actualizarURL("id", item.value);
             observarURL(ELEMENTO_INFO, items, jsonObtenido);
         });
     });
 
-    window.addEventListener("popstate", () => observarURL(ELEMENTO_INFO, items, jsonObtenido));
+    actualizarURL("page", current_page);
+    observarURL(ELEMENTO_INFO, items, jsonObtenido);
+    ocultarBoton(jsonObtenido.count);
+    window.addEventListener("popstate", () => {
+        jsonObtenido = cargarPagina(current_page);
+        actualizarURL("page", current_page);
+        observarURL(ELEMENTO_INFO, items, jsonObtenido);
+        ocultarBoton(jsonObtenido.count);
+    });
 
-    console.log(jsonObtenido);
+    [SIGUIENTE_BOTON, ANTERIOR_BOTON].forEach((button) => {
+        button.addEventListener("click", async (e) => {
+            if (evaluacionNavegacion(e, jsonObtenido.count)) {
+                GRID_UI.textContent = "";
+                if (button.id === "siguiente") {
+                    current_page++;
+                } else {
+                    current_page--;
+                }
+                jsonObtenido = await cargarPagina(current_page);
+                actualizarURL("page", current_page);
+                observarURL(ELEMENTO_INFO, items, jsonObtenido);
+                ocultarBoton(jsonObtenido.count);
+            }
+        });
+    });
 });
-
-// const SECTION = document.querySelector("section");
-// const ANTERIOR_BOTON = document.querySelector("#anterior");
-// const SIGUIENTE_BOTON = document.querySelector("#siguiente");
-// let current_page;
-// let current_json;
-
-// document.addEventListener("DOMContentLoaded", async () => {
-//     current_json = await cargarPagina();
-//     console.log(current_json);
-// });
-
-// ANTERIOR_BOTON.addEventListener("click", async () => {
-//     debugger
-//     if (current_json.page !== 1) {
-//         SECTION.textContent = "";
-//         let current_page = getLocalSt("current_page", Number);
-//         current_page--;
-//         localStorage.setItem("current_page", current_page);
-//         current_json = await cargarPagina()
-//     }
-// });
-
-// SIGUIENTE_BOTON.addEventListener("click", async () => {
-//     if (current_json.page !== current_json.total_pages) {
-//         SECTION.textContent = "";
-//         let current_page = getLocalSt("current_page", Number);
-//         current_page++;
-//         localStorage.setItem("current_page", current_page);
-//         current_json = await cargarPagina()
-//     }
-// });
