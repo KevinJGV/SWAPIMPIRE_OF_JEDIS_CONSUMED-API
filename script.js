@@ -1,56 +1,42 @@
 "use strict";
 
+// Nota: Los comentarios en este código fueron generados por una IA.
+
+// Selección de elementos del DOM
 const GRID_UI = document.querySelector(".grid");
 const ANTERIOR_BOTON = document.querySelector("#anterior");
 const SIGUIENTE_BOTON = document.querySelector("#siguiente");
 const elementos_recorridos = document.querySelector(".current_pag");
-const elementos_totales = document.querySelector("#siguiente");
-let current_page = 1;
+const elementos_totales = document.querySelector(".total_pags");
 const ELEMENTO_INFO = document.querySelector("#info");
-const TITULO_INFO = ELEMENTO_INFO.querySelector(
-    "#info_card #info_card_head h3"
-);
+const TITULO_INFO = ELEMENTO_INFO.querySelector("#info_card #info_card_head h3");
 const CUERPO_INFO = ELEMENTO_INFO.querySelector("#info_card #info_card_body");
 
-function capitalizar(cadena) {
-    return cadena[0].toUpperCase() + cadena.slice(1);
-}
+// Variable global para la página actual
+let current_page = 1;
 
-function Deshacer_Underscore(string) {
-    return capitalizar(string.split("_").join(" "));
-}
+// Función para capitalizar la primera letra de una cadena
+const capitalizar = (cadena) => cadena[0].toUpperCase() + cadena.slice(1);
 
-function encontrarNumeros(cadena) {
-    const PATRON = /[0-9]/g;
-    return cadena.match(PATRON).join("");
-}
+// Función para reemplazar guiones bajos con espacios y capitalizar
+const Deshacer_Underscore = (string) => capitalizar(string.split("_").join(" "));
 
-function cadenaConGuionesBajos(cadena) {
-    return cadena.split(" ").join("_");
-}
+// Función para extraer números de una cadena
+const encontrarNumeros = (cadena) => cadena.match(/[0-9]/g)?.join("") || "";
 
+// Función para reemplazar espacios con guiones bajos
+const cadenaConGuionesBajos = (cadena) => cadena.split(" ").join("_");
+
+// Función para obtener datos de la API
 async function obtenerDatosAPI(url) {
-    const cabeceras = {
-        "Content-Type": "application/json",
-    };
-
     const opciones = {
         method: "GET",
-        headers: cabeceras,
-        description: "",
-        renders: ["application/json", "text/html"],
-        parses: [
-            "application/json",
-            "application/x-www-form-urlencoded",
-            "multipart/form-data",
-        ],
+        headers: { "Content-Type": "application/json" },
     };
 
     try {
         const respuesta = await fetch(new Request(url, opciones));
-        if (!respuesta.ok) {
-            throw new Error(`¡Error HTTP! estado: ${respuesta.status}`);
-        }
+        if (!respuesta.ok) throw new Error(`¡Error HTTP! estado: ${respuesta.status}`);
         return await respuesta.json();
     } catch (error) {
         console.error("Error al obtener datos:", error);
@@ -58,113 +44,109 @@ async function obtenerDatosAPI(url) {
     }
 }
 
+// Función para cargar JSON de la página actual
 async function cargarJsonPaginaActual(pagina) {
-    const paginaActual = document.location.pathname
-        .split("/")
-        .pop()
-        .split(".")
-        .reverse()
-        .pop();
-
+    const paginaActual = document.location.pathname.split("/").pop().split(".")[0];
     if (paginaActual !== "index" && paginaActual !== "") {
-        let url;
-        if (!pagina) {
-            url = `https://swapi.py4e.com/api/${paginaActual}/`;
-        } else {
-            url = `https://swapi.py4e.com/api/${paginaActual}/?page=${pagina}`;
-        }
+        const url = `https://swapi.py4e.com/api/${paginaActual}/${pagina ? `?page=${pagina}` : ''}`;
         return await obtenerDatosAPI(url);
     }
 }
 
+// Cache para almacenar datos de la API
 const cacheAPI = new Map();
 
+// Función para cargar y cachear datos de un item específico
 async function cargarJsonItem(url) {
-    if (cacheAPI.has(url)) {
-        return cacheAPI.get(url);
-    }
+    if (cacheAPI.has(url)) return cacheAPI.get(url);
     const datos = await obtenerDatosAPI(url);
     cacheAPI.set(url, datos);
     return datos;
 }
 
+// Función para cargar y mostrar una página
 async function cargarPagina(pagina) {
     const json = await cargarJsonPaginaActual(pagina);
-    const elementoActual = document.querySelector(".current_pag");
-    if (json.next || json.previous) {
-        const elementoTotal = document.querySelector(".total_pags");
-        elementoActual.textContent =
-            Number(json.next[json.next.length - 1]) * 10 - 10;
-        elementoTotal.textContent = json.count;
-    } else {
-        elementoActual.parentElement.parentElement.remove();
-    }
-
-    const ulPrincipal = document.querySelector("main ul");
-    json.results.forEach((item) => {
-        const item_element = document.createElement("li");
-        item_element.classList.add("card", "selectDisable");
-        item_element.value = encontrarNumeros(item.url.slice(-4));
-        if (ObtenerITEM_URL(item, "films", "bool")) {
-            item_element.textContent = item.title;
-        } else {
-            item_element.textContent = item.name;
-        }
-        ulPrincipal.appendChild(item_element);
-    });
+    actualizarInfoPaginacion(json);
+    crearElementosLista(json.results);
     return json;
 }
 
+// Función para actualizar la información de paginación
+function actualizarInfoPaginacion(json) {
+    if (json.next || json.previous) {
+        elementos_recorridos.textContent = (json.next ? Number(json.next.split("page=")[1]) - 1 : Math.ceil(json.count / 10)) * 10;
+        elementos_totales.textContent = json.count;
+    } else {
+        elementos_recorridos.parentElement.parentElement.remove();
+    }
+}
+
+// Función para crear elementos de lista
+function crearElementosLista(resultados) {
+    const ulPrincipal = document.querySelector("main ul");
+    ulPrincipal.innerHTML = ''; // Limpiar la lista existente
+    resultados.forEach((item) => {
+        const item_element = document.createElement("li");
+        item_element.classList.add("card", "selectDisable");
+        item_element.dataset.id = encontrarNumeros(item.url.slice(-4));
+        item_element.textContent = item.title || item.name;
+        ulPrincipal.appendChild(item_element);
+    });
+    agregarEventListenersItems();
+}
+
+// Función para agregar event listeners a los items
+function agregarEventListenersItems() {
+    const items = document.querySelectorAll("main ul li");
+    items.forEach((item) => {
+        item.addEventListener("click", () => {
+            actualizarURL("id", item.dataset.id);
+            observarURL(ELEMENTO_INFO, items);
+        });
+    });
+}
+
+// Función para actualizar la URL
 function actualizarURL(param, valor) {
     const parametrosURL = new URLSearchParams(window.location.search);
     if (valor) {
         parametrosURL.set(param, valor);
-        const nuevaURL = `${
-            window.location.pathname
-        }?${parametrosURL.toString()}`;
-        history.pushState({}, "", nuevaURL);
+        history.pushState({}, "", `${window.location.pathname}?${parametrosURL.toString()}`);
     } else {
         history.pushState({}, "", window.location.pathname);
     }
 }
 
-async function observarURL(elementoInfo, items, jsonObtenido) {
+// Función para observar cambios en la URL
+async function observarURL(elementoInfo, items) {
     const parametrosURL = new URLSearchParams(window.location.search);
     const id = parametrosURL.get("id");
-    const page = parametrosURL.get("page");
-
-    const itemCoincidente = Array.from(items).find((item) => item.value == id);
-    if (itemCoincidente) {
-        await cargarInfo(id, jsonObtenido);
+    if (id) {
+        await cargarInfo(id);
         elementoInfo.classList.remove("no_display");
         elementoInfo.style.opacity = 1;
     }
 }
 
+// Función para obtener información específica de un item
 function ObtenerITEM_URL(item, string, bool_or_Number) {
-    if (bool_or_Number === "bool") {
-        return item.url.includes(string);
-    } else {
-        return item.url.split("/")[bool_or_Number];
-    }
+    return bool_or_Number === "bool" ? item.url.includes(string) : item.url.split("/")[bool_or_Number];
 }
 
+// Función para obtener un parámetro de la URL
 function obtenerParametroURL(key) {
-    const URLParams = new URLSearchParams(window.location.search)
-    return URLParams.get(key)
+    return new URLSearchParams(window.location.search).get(key);
 }
 
-
-async function cargarInfo(id, jsonObtenido) {
-    const posicion = jsonObtenido.results.find(
-        (pos) => id === encontrarNumeros(pos.url.slice(-4))
-    );
-
-    if (posicion) {
-        await estructurarItems(posicion);
-    }
+// Función para cargar información de un item
+async function cargarInfo(id) {
+    const jsonObtenido = await cargarJsonPaginaActual(current_page);
+    const posicion = jsonObtenido.results.find((pos) => id === encontrarNumeros(pos.url.slice(-4)));
+    if (posicion) await estructurarItems(posicion);
 }
 
+// Función para crear una lista de información
 async function crearUlInfoForOf(clave, objetoItem) {
     if (objetoItem[clave].length > 0) {
         const tituloUl = document.createElement("strong");
@@ -172,7 +154,7 @@ async function crearUlInfoForOf(clave, objetoItem) {
         const elementoUl = document.createElement("ul");
         elementoUl.classList.add("flex", "wrap", "j_c");
 
-        const promesas = objetoItem[clave].map(async (valor) => {
+        const itemsLista = await Promise.all(objetoItem[clave].map(async (valor) => {
             const jsonClave = await cargarJsonItem(valor);
             const pathname = new URL(jsonClave.url);
             const id = pathname.pathname.split("/")[3];
@@ -181,31 +163,19 @@ async function crearUlInfoForOf(clave, objetoItem) {
             elementoLi.classList.add("card");
             const elementoA = document.createElement("a");
             elementoA.href = `${pathname.pathname.split("/")[2]}.html?page=${pagina}&id=${id}`;
-            if (ObtenerITEM_URL(jsonClave, "films", "bool")) {
-                elementoA.textContent = jsonClave.title;
-            } else {
-                elementoA.textContent = jsonClave.name;
-            }
+            elementoA.textContent = jsonClave.title || jsonClave.name;
             elementoLi.appendChild(elementoA);
             return elementoLi;
-        });
+        }));
 
-        const itemsLista = await Promise.all(promesas);
         itemsLista.forEach((li) => elementoUl.appendChild(li));
-
         return [tituloUl, elementoUl];
     }
 }
 
+// Función para crear párrafos con información
 async function crearParStrongTexto(titulo, contenido) {
-    if (
-        contenido.length > 0 &&
-        titulo !== "title" &&
-        titulo !== "name" &&
-        titulo !== "created" &&
-        titulo !== "edited" &&
-        titulo !== "url"
-    ) {
+    if (contenido.length > 0 && !["title", "name", "created", "edited", "url"].includes(titulo)) {
         const strong = document.createElement("strong");
         strong.textContent = Deshacer_Underscore(titulo);
         if (!URL.canParse(contenido)) {
@@ -220,63 +190,46 @@ async function crearParStrongTexto(titulo, contenido) {
             const a = document.createElement("a");
             a.classList.add("card");
             a.href = `${pathname.pathname.split("/")[2]}.html?page=${pagina}&id=${id}`;
-            if (ObtenerITEM_URL(jsonClave, "films", "bool")) {
-                a.textContent = jsonClave.title;
-            } else {
-                a.textContent = jsonClave.name;
-            }
+            a.textContent = jsonClave.title || jsonClave.name;
             return [strong, a];
         }
     }
 }
 
+// Función para estructurar y mostrar información de un item
 async function estructurarItems(item) {
-    if (ObtenerITEM_URL(item, "films", "bool")) {
-        TITULO_INFO.textContent = item.title;
-    } else {
-        TITULO_INFO.textContent = item.name;
-    }
+    TITULO_INFO.textContent = item.title || item.name;
+    CUERPO_INFO.innerHTML = ''; // Limpiar el contenido existente
 
-    const elementos = [];
-
-    for (const key of Object.keys(item)) {
-        if (Array.isArray(item[key])) {
-            const UlElement = await crearUlInfoForOf(key, item);
-            elementos.push(UlElement);
+    const elementos = await Promise.all(Object.entries(item).map(async ([key, value]) => {
+        if (Array.isArray(value)) {
+            return await crearUlInfoForOf(key, item);
         } else {
-            const PElement = await crearParStrongTexto(key, item[key]);
-            elementos.push(PElement);
+            return await crearParStrongTexto(key, value);
         }
-    }
+    }));
 
-    const filtred_elementos = elementos.filter((element) => element);
-    filtred_elementos.flat().forEach((elem) => CUERPO_INFO.appendChild(elem));
+    elementos.filter(Boolean).flat().forEach((elem) => CUERPO_INFO.appendChild(elem));
 }
 
+// Función para evaluar la navegación
 function evaluacionNavegacion(e, valor_maximo) {
-    if (e.target.id === "siguiente") {
-        return Number(elementos_recorridos.textContent) + 10 >
-            Number(valor_maximo)
-            ? false
-            : true;
-    } else {
-        return Number(elementos_recorridos.textContent) - 10 < 1 ? false : true;
-    }
+    const elementosActuales = Number(elementos_recorridos.textContent);
+    return e.target.id === "siguiente" 
+        ? elementosActuales + 10 <= Number(valor_maximo)
+        : elementosActuales - 10 >= 1;
 }
 
+// Función para ocultar/mostrar botones de navegación
 function ocultarBoton(valor_maximo) {
-    if (Number(elementos_recorridos.textContent) + 10 > Number(valor_maximo)) {
-        SIGUIENTE_BOTON.classList.add("hidden");
-    } else if (Number(elementos_recorridos.textContent) - 10 < 1) {
-        ANTERIOR_BOTON.classList.add("hidden");
-    } else {
-        SIGUIENTE_BOTON.classList.remove("hidden");
-        ANTERIOR_BOTON.classList.remove("hidden");
-    }
+    const elementosActuales = Number(elementos_recorridos.textContent);
+    SIGUIENTE_BOTON.classList.toggle("hidden", elementosActuales + 10 > Number(valor_maximo));
+    ANTERIOR_BOTON.classList.toggle("hidden", elementosActuales - 10 < 1);
 }
 
+// Event listener principal cuando el DOM está cargado
 document.addEventListener("DOMContentLoaded", async () => {
-    current_page = obtenerParametroURL("page");
+    current_page = obtenerParametroURL("page") || 1;
     let jsonObtenido;
     try {
         jsonObtenido = await cargarPagina(current_page);
@@ -285,45 +238,33 @@ document.addEventListener("DOMContentLoaded", async () => {
         return;
     }
 
-    const items = document.querySelectorAll("main ul li");
-
     document.querySelector(".exit").addEventListener("click", () => {
         actualizarURL();
         ELEMENTO_INFO.style.opacity = 0;
         ELEMENTO_INFO.classList.add("no_display");
         TITULO_INFO.textContent = "";
-        CUERPO_INFO.textContent = "";
-    });
-
-    items.forEach((item) => {
-        item.addEventListener("click", () => {
-            actualizarURL("id", item.value);
-            observarURL(ELEMENTO_INFO, items, jsonObtenido);
-        });
+        CUERPO_INFO.innerHTML = '';
     });
 
     actualizarURL("page", current_page);
-    observarURL(ELEMENTO_INFO, items, jsonObtenido);
+    observarURL(ELEMENTO_INFO, document.querySelectorAll("main ul li"));
     ocultarBoton(jsonObtenido.count);
-    window.addEventListener("popstate", () => {
-        jsonObtenido = cargarPagina(current_page);
+
+    window.addEventListener("popstate", async () => {
+        current_page = obtenerParametroURL("page") || current_page;
+        jsonObtenido = await cargarPagina(current_page);
         actualizarURL("page", current_page);
-        observarURL(ELEMENTO_INFO, items, jsonObtenido);
+        observarURL(ELEMENTO_INFO, document.querySelectorAll("main ul li"));
         ocultarBoton(jsonObtenido.count);
     });
 
     [SIGUIENTE_BOTON, ANTERIOR_BOTON].forEach((button) => {
         button.addEventListener("click", async (e) => {
             if (evaluacionNavegacion(e, jsonObtenido.count)) {
-                GRID_UI.textContent = "";
-                if (button.id === "siguiente") {
-                    current_page++;
-                } else {
-                    current_page--;
-                }
+                current_page = e.target.id === "siguiente" ? ++current_page : --current_page;
                 jsonObtenido = await cargarPagina(current_page);
                 actualizarURL("page", current_page);
-                observarURL(ELEMENTO_INFO, items, jsonObtenido);
+                observarURL(ELEMENTO_INFO, document.querySelectorAll("main ul li"));
                 ocultarBoton(jsonObtenido.count);
             }
         });
