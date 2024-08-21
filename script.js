@@ -9,7 +9,9 @@ const SIGUIENTE_BOTON = document.querySelector("#siguiente");
 const elementos_recorridos = document.querySelector(".current_pag");
 const elementos_totales = document.querySelector(".total_pags");
 const ELEMENTO_INFO = document.querySelector("#info");
-const TITULO_INFO = ELEMENTO_INFO.querySelector("#info_card #info_card_head h3");
+const TITULO_INFO = ELEMENTO_INFO.querySelector(
+    "#info_card #info_card_head h3"
+);
 const CUERPO_INFO = ELEMENTO_INFO.querySelector("#info_card #info_card_body");
 
 // Variable global para la página actual
@@ -19,7 +21,8 @@ let current_page = 1;
 const capitalizar = (cadena) => cadena[0].toUpperCase() + cadena.slice(1);
 
 // Función para reemplazar guiones bajos con espacios y capitalizar
-const Deshacer_Underscore = (string) => capitalizar(string.split("_").join(" "));
+const Deshacer_Underscore = (string) =>
+    capitalizar(string.split("_").join(" "));
 
 // Función para extraer números de una cadena
 const encontrarNumeros = (cadena) => cadena.match(/[0-9]/g)?.join("") || "";
@@ -36,7 +39,8 @@ async function obtenerDatosAPI(url) {
 
     try {
         const respuesta = await fetch(new Request(url, opciones));
-        if (!respuesta.ok) throw new Error(`¡Error HTTP! estado: ${respuesta.status}`);
+        if (!respuesta.ok)
+            throw new Error(`¡Error HTTP! estado: ${respuesta.status}`);
         return await respuesta.json();
     } catch (error) {
         console.error("Error al obtener datos:", error);
@@ -46,9 +50,14 @@ async function obtenerDatosAPI(url) {
 
 // Función para cargar JSON de la página actual
 async function cargarJsonPaginaActual(pagina) {
-    const paginaActual = document.location.pathname.split("/").pop().split(".")[0];
+    const paginaActual = document.location.pathname
+        .split("/")
+        .pop()
+        .split(".")[0];
     if (paginaActual !== "index" && paginaActual !== "") {
-        const url = `https://swapi.py4e.com/api/${paginaActual}/${pagina ? `?page=${pagina}` : ''}`;
+        const url = `https://swapi.py4e.com/api/${paginaActual}/${
+            pagina ? `?page=${pagina}` : ""
+        }`;
         return await obtenerDatosAPI(url);
     }
 }
@@ -75,7 +84,10 @@ async function cargarPagina(pagina) {
 // Función para actualizar la información de paginación
 function actualizarInfoPaginacion(json) {
     if (json.next || json.previous) {
-        elementos_recorridos.textContent = (json.next ? Number(json.next.split("page=")[1]) - 1 : Math.ceil(json.count / 10)) * 10;
+        elementos_recorridos.textContent =
+            (json.next
+                ? Number(json.next.split("page=")[1]) - 1
+                : Math.ceil(json.count / 10)) * 10;
         elementos_totales.textContent = json.count;
     } else {
         elementos_recorridos.parentElement.parentElement.remove();
@@ -85,10 +97,15 @@ function actualizarInfoPaginacion(json) {
 // Función para crear elementos de lista
 function crearElementosLista(resultados) {
     const ulPrincipal = document.querySelector("main ul");
-    ulPrincipal.innerHTML = ''; // Limpiar la lista existente
+    ulPrincipal.innerHTML = ""; // Limpiar la lista existente
     resultados.forEach((item) => {
         const item_element = document.createElement("li");
-        item_element.classList.add("card", "selectDisable", "flex", "grid_text_center");
+        item_element.classList.add(
+            "card",
+            "selectDisable",
+            "flex",
+            "grid_text_center"
+        );
         item_element.dataset.id = encontrarNumeros(item.url.slice(-4));
         item_element.textContent = item.title || item.name;
         ulPrincipal.appendChild(item_element);
@@ -112,7 +129,11 @@ function actualizarURL(param, valor) {
     const parametrosURL = new URLSearchParams(window.location.search);
     if (valor) {
         parametrosURL.set(param, valor);
-        history.pushState({}, "", `${window.location.pathname}?${parametrosURL.toString()}`);
+        history.pushState(
+            {},
+            "",
+            `${window.location.pathname}?${parametrosURL.toString()}`
+        );
     } else {
         history.pushState({}, "", window.location.pathname);
     }
@@ -131,7 +152,9 @@ async function observarURL(elementoInfo, items) {
 
 // Función para obtener información específica de un item
 function ObtenerITEM_URL(item, string, bool_or_Number) {
-    return bool_or_Number === "bool" ? item.url.includes(string) : item.url.split("/")[bool_or_Number];
+    return bool_or_Number === "bool"
+        ? item.url.includes(string)
+        : item.url.split("/")[bool_or_Number];
 }
 
 // Función para obtener un parámetro de la URL
@@ -142,29 +165,44 @@ function obtenerParametroURL(key) {
 // Función para cargar información de un item
 async function cargarInfo(id) {
     const jsonObtenido = await cargarJsonPaginaActual(current_page);
-    const posicion = jsonObtenido.results.find((pos) => id === encontrarNumeros(pos.url.slice(-4)));
+    const posicion = jsonObtenido.results.find(
+        (pos) => id === encontrarNumeros(pos.url.slice(-4))
+    );
     if (posicion) await estructurarItems(posicion);
 }
 
+// Funcion para encontrar la pagina en la API del elemento hipervinculado mostrado en la informacion 
 function obtenerPaginaParaAncla(id_a_encontrar, tema, pagina) {
     return obtenerDatosAPI(`https://swapi.py4e.com/api/${tema}/?page=${pagina}`)
-        .then(json => {
+        .then((json) => {
             for (const elem of json.results) {
-                if (elem.url.split("/")[3] === id_a_encontrar) {
+                if (elem.url.split("/")[5] === id_a_encontrar) {
                     return pagina;
                 }
-            };
+            }
             if (json.next) {
                 return obtenerPaginaParaAncla(id_a_encontrar, tema, pagina + 1);
             }
         })
-        .catch(error => {
+        .catch((error) => {
             console.error("Error al obtener la página:", error);
             throw error;
         });
 }
 
-
+// Funcion para crear los anclas dentro de la informacion de cada carta
+async function dentroDeElemtoDeCarta(valor) {
+    const jsonClave = await cargarJsonItem(valor);
+    const pathname = new URL(jsonClave.url);
+    const tema = pathname.pathname.split("/")[2];
+    const id = pathname.pathname.split("/")[3];
+    const pagina = await obtenerPaginaParaAncla(id, tema, 1);
+    const elementoA = document.createElement("a");
+    elementoA.classList.add("card");
+    elementoA.href = `${tema}.html?page=${pagina}&id=${id}`;
+    elementoA.textContent = jsonClave.title || jsonClave.name;
+    return elementoA;
+}
 
 // Función para crear una lista de información
 async function crearUlInfoForOf(clave, objetoItem) {
@@ -174,21 +212,12 @@ async function crearUlInfoForOf(clave, objetoItem) {
         const elementoUl = document.createElement("ul");
         elementoUl.classList.add("flex", "wrap", "j_c");
 
-        const itemsLista = await Promise.all(objetoItem[clave].map(async (valor) => {
-            const jsonClave = await cargarJsonItem(valor);
-            const pathname = new URL(jsonClave.url);
-            const tema = pathname.pathname.split("/")[2];
-            const id = pathname.pathname.split("/")[3];
-            const pagina = await obtenerPaginaParaAncla(id,tema, 1);
-            console.log(pagina);
-            const elementoLi = document.createElement("li");
-            elementoLi.classList.add("card");
-            const elementoA = document.createElement("a");
-            elementoA.href = `${tema}.html?page=${pagina}&id=${id}`;
-            elementoA.textContent = jsonClave.title || jsonClave.name;
-            elementoLi.appendChild(elementoA);
-            return elementoLi;
-        }));
+        const itemsLista = await Promise.all(
+            objetoItem[clave].map(async (valor) => {
+                const elementoA = await dentroDeElemtoDeCarta(valor);
+                return elementoA;
+            })
+        );
 
         itemsLista.forEach((li) => elementoUl.appendChild(li));
         return [tituloUl, elementoUl];
@@ -197,7 +226,10 @@ async function crearUlInfoForOf(clave, objetoItem) {
 
 // Función para crear párrafos con información
 async function crearParStrongTexto(titulo, contenido) {
-    if (contenido.length > 0 && !["title", "name", "created", "edited", "url"].includes(titulo)) {
+    if (
+        contenido.length > 0 &&
+        !["title", "name", "created", "edited", "url"].includes(titulo)
+    ) {
         const strong = document.createElement("strong");
         strong.textContent = Deshacer_Underscore(titulo);
         if (!URL.canParse(contenido)) {
@@ -205,15 +237,8 @@ async function crearParStrongTexto(titulo, contenido) {
             p.textContent = contenido;
             return [strong, p];
         } else {
-            const jsonClave = await cargarJsonItem(contenido);
-            const pathname = new URL(jsonClave.url);
-            const id = Number(pathname.pathname.split("/")[3]);
-            const pagina = Math.ceil(id / 10);
-            const a = document.createElement("a");
-            a.classList.add("card");
-            a.href = `${pathname.pathname.split("/")[2]}.html?page=${pagina}&id=${id}`;
-            a.textContent = jsonClave.title || jsonClave.name;
-            return [strong, a];
+            const elementoA = await dentroDeElemtoDeCarta(contenido);
+            return [strong, elementoA];
         }
     }
 }
@@ -221,23 +246,28 @@ async function crearParStrongTexto(titulo, contenido) {
 // Función para estructurar y mostrar información de un item
 async function estructurarItems(item) {
     TITULO_INFO.textContent = item.title || item.name;
-    CUERPO_INFO.innerHTML = ''; // Limpiar el contenido existente
+    CUERPO_INFO.innerHTML = ""; // Limpiar el contenido existente
 
-    const elementos = await Promise.all(Object.entries(item).map(async ([key, value]) => {
-        if (Array.isArray(value)) {
-            return await crearUlInfoForOf(key, item);
-        } else {
-            return await crearParStrongTexto(key, value);
-        }
-    }));
+    const elementos = await Promise.all(
+        Object.entries(item).map(async ([key, value]) => {
+            if (Array.isArray(value)) {
+                return await crearUlInfoForOf(key, item);
+            } else {
+                return await crearParStrongTexto(key, value);
+            }
+        })
+    );
 
-    elementos.filter(Boolean).flat().forEach((elem) => CUERPO_INFO.appendChild(elem));
+    elementos
+        .filter(Boolean)
+        .flat()
+        .forEach((elem) => CUERPO_INFO.appendChild(elem));
 }
 
 // Función para evaluar la navegación
 function evaluacionNavegacion(e, valor_maximo) {
     const elementosActuales = Number(elementos_recorridos.textContent);
-    return e.target.id === "siguiente" 
+    return e.target.id === "siguiente"
         ? elementosActuales + 10 <= Number(valor_maximo)
         : elementosActuales - 10 >= 1;
 }
@@ -245,13 +275,15 @@ function evaluacionNavegacion(e, valor_maximo) {
 // Función para ocultar/mostrar botones de navegación
 function ocultarBoton(valor_maximo) {
     const elementosActuales = Number(elementos_recorridos.textContent);
-    SIGUIENTE_BOTON.classList.toggle("hidden", elementosActuales + 10 > Number(valor_maximo));
+    SIGUIENTE_BOTON.classList.toggle(
+        "hidden",
+        elementosActuales + 10 > Number(valor_maximo)
+    );
     ANTERIOR_BOTON.classList.toggle("hidden", elementosActuales - 10 < 1);
 }
 
 // Event listener principal cuando el DOM está cargado
 document.addEventListener("DOMContentLoaded", async () => {
-    console.log(await obtenerPaginaParaAncla("17","people",1));
     current_page = obtenerParametroURL("page") || 1;
     let jsonObtenido;
     try {
@@ -266,7 +298,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         ELEMENTO_INFO.style.opacity = 0;
         ELEMENTO_INFO.classList.add("no_display");
         TITULO_INFO.textContent = "";
-        CUERPO_INFO.innerHTML = '';
+        CUERPO_INFO.innerHTML = "";
     });
 
     actualizarURL("page", current_page);
@@ -284,10 +316,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     [SIGUIENTE_BOTON, ANTERIOR_BOTON].forEach((button) => {
         button.addEventListener("click", async (e) => {
             if (evaluacionNavegacion(e, jsonObtenido.count)) {
-                current_page = e.target.id === "siguiente" ? ++current_page : --current_page;
+                current_page =
+                    e.target.id === "siguiente"
+                        ? ++current_page
+                        : --current_page;
                 jsonObtenido = await cargarPagina(current_page);
                 actualizarURL("page", current_page);
-                observarURL(ELEMENTO_INFO, document.querySelectorAll("main ul li"));
+                observarURL(
+                    ELEMENTO_INFO,
+                    document.querySelectorAll("main ul li")
+                );
                 ocultarBoton(jsonObtenido.count);
             }
         });
