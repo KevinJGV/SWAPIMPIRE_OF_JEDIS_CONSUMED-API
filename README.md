@@ -16,7 +16,7 @@ Este proyecto presenta "SWAPIMPIRE OF JEDIS", una aplicación web interactiva qu
 SWAPIMPIRE OF JEDIS es una aplicación web responsive diseñada para funcionar en una amplia gama de dispositivos. Para visualizar el proyecto:
 
 1. Clona el repositorio e inicia `index.html` en tu navegador.
-2. O accede a través de GitHub Pages: [https://kevinjgv.github.io/Proyecto_JavaScript_GonzalezKevin/](https://kevinjgv.github.io/Proyecto_JavaScript_GonzalezKevin/)
+2. O accede a través de GitHub Pages: [https://kevinjgv.github.io/SWAPIMPIRE_OF_JEDIS_CONSUMED-API/](https://kevinjgv.github.io/SWAPIMPIRE_OF_JEDIS_CONSUMED-API/)
 
 ## Características principales 🌟
 
